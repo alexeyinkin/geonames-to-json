@@ -27,10 +27,10 @@ with open(args.tsv) as f:
             if not country in countries: continue
 
         id = columns[0]
-        name = columns[1]
+        title = columns[1]
 
         dict[id] = {
-            'name': name,
+            'title': title,
         }
 
         if limit != None:
