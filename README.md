@@ -1,43 +1,54 @@
-# geonames-to-json
+## iHerb -- backend
 
-This script picks cities from GeoNames DB files in TSV format and writes JSON output.
+### Нейронная сеть предупреждения о риске
 
-Usage:
-```
-python3 geonames-to-json.py [-h] [--tsv FILE] [--countries COUNTRIES] [--skip_cities CITIES] [--limit N]
-```
-Converts geonames cities to JSON suitable for Firebase import
+Находится в `/python-safety`. Используется Python 3.8 и TensorFlow.
 
-optional arguments:
--  `-h`, `--help`            show this help message and exit
--  `--tsv FILE`            Path to a geonames TSV export file.
--  `--countries COUNTRIES` Comma-separated list of 2-letter country codes. Default: all countries.
--  `--skip_cities CITIES`  Comma-separated list of city names to skip.
--  `--limit N`             Only use first N matching cities.
-
-Example:
+Установка на Ubuntu:
 ```bash
-python3 geonames-to-json.py --tsv cities500.txt --countries GB --skip_cities 'City of London,West End of London' --limit 3 > gb.json
+apt install python3-pip
+pip3 install tensorflow pyyaml h5py virtualenv gunicorn flask
 ```
 
-Output:
-```json
-{"146839": {"title": "Akrotiri", "score": "713"}, "2633332": {"title": "Ystrad Mynach", "score": "0"}, "2633334": {"title": "Ystradgynlais", "score": "0"}}
+- Входные данные для обучения: `data.tsv`
+- Обучение: `python3 fit.py`
+- Запуск сервера: `python3 serve.py`
+
+После запуска сервер доступен на порте `5000` и принимает POST-запросы:
+
 ```
+POST / HTTP/1.1
 
-The output contains:
-- `title` for city name.
-- `score` for population.
+{"features":[1, 0],"substances":[1, 1, 0]}
+```
+Здесь:
+- `features` -- массив фич пользователя: принадлежности к классам пищевых привычек, пол, возраст, рост, масса, подтверждённые врачом диагнозы и результаты анализов.
+- `substances` -- дозировки каждого вещества в одном товаре или в сумме по нескольким.
 
-## TODO
-- Allow to pick and rename fields.
 
-## Firebase Import
-In case you want to import this JSON to Firebase, use this:
+### Триггер и индекс Firebase для справочника болезней
+
+Находятся в `/firebase`
+
+Триггер используется, чтобы при добавлении или изменении записи проиндексировать её подстроки -- чтобы работал поиск по частичному вводу.
+
+Деплой:
 
 ```bash
-npm install -g node-firestore-import-export
-firestore-import --accountCredentials credentials.json --backupFile gb_population.json --nodePath ukCities
+firebase deploy --only functions
 ```
 
-where `credentials.json` is a file you export from Firebase console as per this tutorial: https://www.youtube.com/watch?v=gPzs6t3tQak
+Индексы в `firestore.indexes.json` необходимы для поиска. Деплой:
+```bash
+firebase deploy --only firestore:indexes
+```
+
+
+### Конвертор справочника болезней
+
+Находится в `/conditions-to-json`. Для загрузки в Firebase записи должны быть в JSON, но оригинал справочника доступен в интернете в CSV. Данный скрипт конвертирует данные.
+
+Запуск:
+```bash
+python3 conditions-to-json.py --tsv FILE [--limit N]
+```
